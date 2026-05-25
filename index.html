@@ -307,6 +307,8 @@ const nextDay = dayNumber === maxDay ? minDay : dayNumber + 1;
       window.__cardPhotoIndex = 0;
 
       const statusLabel = status === 'unknown' ? null : status.replace(/_/g, ' ');
+
+
       let html = `<div class="map-overlay-inner"><button class="close-button" onclick="closeCard()">&times;</button><div class="panel-scroll">`;
 
       if (photos.length) {
@@ -316,31 +318,41 @@ const nextDay = dayNumber === maxDay ? minDay : dayNumber + 1;
         }
         html += `</div>`;
         if (photos.length > 1) html += `<div class="carousel-meta">1 / ${photos.length}</div>`;
+
+          html += `
+  <div class="card-top-nav">
+    <button class="day-nav-btn" onclick="selectPaintingByDay(${previousDay})"><span class="nav-arrow">←</span> PREV</button>
+    <div class="day-label">DAY ${dayNumber}</div>
+    <button class="day-nav-btn" onclick="selectPaintingByDay(${nextDay})">NEXT <span class="nav-arrow">→</span></button>
+  </div>
+`;
+        html += `<h2 class="card-title">${escapeHtml(title)}</h2>`;
+
+if (price) {
+  html += `<div class="card-price">${escapeHtml(price)} NZD</div>`;
+}
+
       }
 
-      html += `<h2 class="card-title">${escapeHtml(title)}</h2>`;
-      if (beach) html += `<div class="subtitle-main">${escapeHtml(beach)}</div>`;
-
-      html += `<ul class="card-list">`;
-      if (statusLabel) html += `<li><strong>Status:</strong> ${escapeHtml(statusLabel)}</li>`;
-      if (price) html += `<li><strong>Price:</strong> ${escapeHtml(price)}</li>`;
-      if (safeGet(props, 'medium')) html += `<li><strong>Medium:</strong> ${escapeHtml(safeGet(props, 'medium'))}</li>`;
-      if (safeGet(props, 'size')) html += `<li><strong>Size:</strong> ${escapeHtml(safeGet(props, 'size'))}</li>`;
-      html += `</ul>`;
+    
 
       const description = safeGet(props, 'description', 'Description', 'notes');
       if (description) html += `<p class="description">${escapeHtml(description)}</p>`;
 
       html += `<div class="card-actions">`;
+html += `
+  <div class="print-details">
+    High quality print on crisp white smooth 220gsm satin paper with signature.
+    <br>
 
-if (dayNumber) {
-  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${previousDay})">Previous day</button>`;
-  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${nextDay})">Next day</button>`;
-}
-
+    Available in A5, A4, and A3.
+    
+  </div>
+`;
 if (shopUrl) {
-  html += `<a class="primary-btn" href="${escapeHtml(shopUrl)}" target="_blank" rel="noopener">Buy Now</a>`;
+  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_blank" rel="noopener">Buy Now</a>`;
 }
+
 
 html += `</div></div></div>`;
 
