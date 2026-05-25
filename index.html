@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Beach Paintings Map</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/map.css" />
+</head>
+<body>
+  <div id="imageModal" class="modal" role="dialog" aria-modal="true">
+    <button class="modal-nav prev" onclick="modalPrev(event)" aria-label="Previous image">❮</button>
+    <img class="modal-content" id="modalImage" alt="Painting image fullscreen" />
+    <button class="modal-nav next" onclick="modalNext(event)" aria-label="Next image">❯</button>
+    <span class="close-modal" onclick="closeModal()" aria-label="Close">×</span>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="map-overlay" id="properties"></div>
+
+  <script>
+    
+    const PAINTINGS_GEOJSON = 'data/paintings.example.geojson';
+
+    const LINZ_API_KEY = 'd01hep5551e30kxb7w85hck49tp';
+    const STYLE_URL = `https://basemaps.linz.govt.nz/v1/styles/aerial.json?api=${LINZ_API_KEY}`;
+
+    const INITIAL_VIEW = {
+      center: [173.651145,-41.035373	],
+      zoom: 5.3,
+      minZoom: 5
+    };
+
+    const statusColors = {
+      available: '#1f9d55',
+      sold: '#9ca3af',
+      print: '#2563eb',
+      commission: '#f97316',
+      unknown: '#111827'
+    };
+
+    let map;
+    let activePanel = null;
+    let allFeatures = [];
+    let selectedFeatureId = null;
+    let hoverFeatureId = null;
+    window.__cardPhotos = [];
+    window.__cardPhotoIndex = 0;
+
+    // =========================================================
+    // INITIAL VIEW FROM HASH
+    // =========================================================
+ 
+   
+    map = new maplibregl.Map({
+      container: 'map',
+      style: STYLE_URL,
+      center: INITIAL_VIEW.center,
+      zoom: INITIAL_VIEW.zoom,
+      minZoom: INITIAL_VIEW.minZoom
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+      showUserHeading: true
+    }), 'top-right');
+
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
+    function isBlankish(v) {
+      if (v === null || v === undefined) return true;
+      const s = String(v).trim();
+      return !s || /^(na|n\/a|null|undefined|none)$/i.test(s);
+    }
+
+    function safeGet(obj, ...keys) {
+      for (const key of keys) {
+        const v = obj?.[key];
+        if (!isBlankish(v)) return v;
+      }
+      return null;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
+      }[c]));
+    }
+
+    function splitList(raw) {
+      if (isBlankish(raw)) return [];
+      return String(raw).split(/[;,|\n]+/g).map(s => s.trim()).filter(Boolean);
+    }
+
+    function normalizeUrl(raw) {
+      if (isBlankish(raw)) return null;
+      let u = String(raw).trim();
+      if (u.startsWith('javascript:')) return null;
+      if (u.startsWith('data:image/')) return u;
+      if (u.startsWith('/') || u.startsWith('./') || u.startsWith('../')) return u;
+      if (!/^[a-z]+:\/\//i.test(u)) u = 'https://' + u;
+      try {
+        const parsed = new URL(u);
+        return /^https?:$/.test(parsed.protocol) ? parsed.href : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getDayNumber(props) {
+  const raw = safeGet(props, 'day', 'Day', 'day_number', 'number', 'Number');
+  const n = parseInt(String(raw).replace(/\D/g, ''), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+    function collectPhotoUrls(props) {
+      const candidates = [
+        'image', 'image_url', 'photo', 'photo_url', 'photos', 'photo_urls',
+        'painting_image', 'painting_image_url', 'thumbnail', 'thumbnail_url',
+        'image1', 'image2', 'image3', 'Photo1', 'Photo2', 'Photo3'
+      ];
+      const urls = [];
+      for (const key of candidates) {
+        splitList(props?.[key]).forEach(v => {
+          const u = normalizeUrl(v);
+          if (u) urls.push(u);
+        });
+      }
+      return [...new Set(urls)];
+    }
+
+    function getTitle(props) {
+      return safeGet(props, 'painting_title', 'title', 'name', 'Name', 'Water', 'beach_name') || 'Untitled painting';
+    }
+
+    function getBeach(props) {
+      return safeGet(props, 'beach', 'beach_name', 'location', 'Location', 'subtitle', 'Section', 'Region') || null;
+    }
+
+    function getStatus(props) {
+      return String(safeGet(props, 'status', 'availability', 'available') || 'unknown').toLowerCase();
+    }
+
+    function getShopUrl(props) {
+      return normalizeUrl(safeGet(props, 'shopify_link', 'product_url', 'url', 'more_info_url', 'moreinfo_url', 'website'));
+    }
+
+    function getPrice(props) {
+      return safeGet(props, 'price', 'Price', 'display_price') || null;
+    }
+
+
+    function getGoogleDirectionsLink(feature) {
+      if (feature.geometry?.type !== 'Point') return null;
+      const [lng, lat] = feature.geometry.coordinates;
+      return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    }
+
+    // =========================================================
+    // PANEL AND IMAGE MODAL
+    // =========================================================
+ function openPanel(which) {
+  const properties = document.getElementById('properties');
+
+  if (properties) properties.style.display = 'none';
+
+  activePanel = null;
+
+  if (which === 'card' && properties) {
+    properties.style.display = 'block';
+    activePanel = 'card';
+  }
+}
+    function closeCard() {
+      openPanel(null);
+      selectedFeatureId = null;
+      if (map?.getLayer('paintings-selected')) map.setFilter('paintings-selected', ['==', ['id'], -1]);
+    }
+map.on('click', (e) => {
+  const features = map.queryRenderedFeatures(e.point, {
+    layers: ['paintings-pins']
+  });
+
+  if (!features.length) {
+    closeCard();
+  }
+});
+    
+
+    function setCardImage(index) {
+      const photos = window.__cardPhotos || [];
+      if (!photos.length) return;
+      const n = ((index % photos.length) + photos.length) % photos.length;
+      window.__cardPhotoIndex = n;
+      const main = document.getElementById('cardMainImage');
+      if (main) main.src = photos[n];
+      const modalImg = document.getElementById('modalImage');
+      if (document.getElementById('imageModal')?.classList.contains('show') && modalImg) modalImg.src = photos[n];
+      const meta = document.querySelector('.carousel-meta');
+      if (meta) meta.textContent = `${n + 1} / ${photos.length}`;
+    }
+
+    function nextImage(ev) { if (ev) ev.stopPropagation(); setCardImage(window.__cardPhotoIndex + 1); }
+    function prevImage(ev) { if (ev) ev.stopPropagation(); setCardImage(window.__cardPhotoIndex - 1); }
+
+    function openImageModal(index = 0) {
+      if (!window.__cardPhotos.length) return;
+      setCardImage(index);
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImage');
+      modalImg.src = window.__cardPhotos[window.__cardPhotoIndex];
+      modal.classList.add('show');
+      updateModalNavVisibility();
+      modal.onclick = ev => { if (ev.target === modal) closeModal(); };
+      window.addEventListener('keydown', handleModalKeys);
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('imageModal');
+      modal.classList.remove('show');
+      modal.onclick = null;
+      window.removeEventListener('keydown', handleModalKeys);
+    }
+
+    function modalNext(ev) { if (ev) ev.stopPropagation(); nextImage(); }
+    function modalPrev(ev) { if (ev) ev.stopPropagation(); prevImage(); }
+
+    function updateModalNavVisibility() {
+      const show = (window.__cardPhotos || []).length > 1;
+      document.querySelector('#imageModal .modal-nav.prev').style.display = show ? '' : 'none';
+      document.querySelector('#imageModal .modal-nav.next').style.display = show ? '' : 'none';
+    }
+
+    function handleModalKeys(e) {
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'ArrowRight') modalNext(e);
+      if (e.key === 'ArrowLeft') modalPrev(e);
+    }
+
+    (function addModalSwipe() {
+      let startX = 0, startY = 0, tracking = false;
+      const img = document.getElementById('modalImage');
+      img.addEventListener('touchstart', e => {
+        const t = e.touches?.[0]; if (!t) return;
+        startX = t.clientX; startY = t.clientY; tracking = true;
+      }, { passive: true });
+      img.addEventListener('touchend', e => {
+        if (!tracking) return;
+        const t = e.changedTouches?.[0]; if (!t) return;
+        const dx = t.clientX - startX; const dy = t.clientY - startY;
+        tracking = false;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? modalNext() : modalPrev();
+      }, { passive: true });
+    })();
+
+    // =========================================================
+    // CARD
+    // =========================================================
+    function showPaintingCard(feature) {
+      const props = feature.properties || {};
+      const title = getTitle(props);
+      const beach = getBeach(props);
+      const status = getStatus(props);
+      const price = getPrice(props);
+      const shopUrl = getShopUrl(props);
+      const directionsUrl = getGoogleDirectionsLink(feature);
+      const photos = collectPhotoUrls(props);
+      const dayNumber = props.__day;
+const hasPrevious = dayNumber && allFeatures.some(f => f.properties?.__day === dayNumber - 1);
+const hasNext = dayNumber && allFeatures.some(f => f.properties?.__day === dayNumber + 1);
+
+      window.__cardPhotos = photos;
+      window.__cardPhotoIndex = 0;
+
+      const statusLabel = status === 'unknown' ? null : status.replace(/_/g, ' ');
+      let html = `<div class="map-overlay-inner"><button class="close-button" onclick="closeCard()">&times;</button><div class="panel-scroll">`;
+
+      if (photos.length) {
+        html += `<div class="card-image-wrap"><img id="cardMainImage" src="${escapeHtml(photos[0])}" alt="${escapeHtml(title)}" onclick="openImageModal(0)" />`;
+        if (photos.length > 1) {
+          html += `<button class="carousel-button prev" onclick="prevImage(event)" aria-label="Previous image">❮</button><button class="carousel-button next" onclick="nextImage(event)" aria-label="Next image">❯</button>`;
+        }
+        html += `</div>`;
+        if (photos.length > 1) html += `<div class="carousel-meta">1 / ${photos.length}</div>`;
+      }
+
+      html += `<h2 class="card-title">${escapeHtml(title)}</h2>`;
+      if (beach) html += `<div class="subtitle-main">${escapeHtml(beach)}</div>`;
+
+      html += `<ul class="card-list">`;
+      if (statusLabel) html += `<li><strong>Status:</strong> ${escapeHtml(statusLabel)}</li>`;
+      if (price) html += `<li><strong>Price:</strong> ${escapeHtml(price)}</li>`;
+      if (safeGet(props, 'medium')) html += `<li><strong>Medium:</strong> ${escapeHtml(safeGet(props, 'medium'))}</li>`;
+      if (safeGet(props, 'size')) html += `<li><strong>Size:</strong> ${escapeHtml(safeGet(props, 'size'))}</li>`;
+      html += `</ul>`;
+
+      const description = safeGet(props, 'description', 'Description', 'notes');
+      if (description) html += `<p class="description">${escapeHtml(description)}</p>`;
+
+      html += `<div class="card-actions">`;
+
+if (hasPrevious) {
+  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${dayNumber - 1})">Previous day</button>`;
+}
+
+if (hasNext) {
+  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${dayNumber + 1})">Next day</button>`;
+}
+
+if (shopUrl) {
+  html += `<a class="primary-btn" href="${escapeHtml(shopUrl)}" target="_blank" rel="noopener">Buy Now</a>`;
+}
+
+html += `</div></div></div>`;
+
+      document.getElementById('properties').innerHTML = html;
+      openPanel('card');
+    }
+
+
+    // =========================================================
+    // DATA + LAYERS
+    // =========================================================
+    function getFeatureId(feature, index) {
+      return feature.id ?? feature.properties?.id ?? feature.properties?.ID ?? index;
+    }
+
+function normaliseFeatureProperties(feature, index) {
+  feature.id = getFeatureId(feature, index);
+  const props = feature.properties || {};
+
+  props.__status = getStatus(props);
+  props.__color = statusColors[props.__status] || statusColors.unknown;
+  props.__title = getTitle(props);
+  props.__beach = getBeach(props) || '';
+  props.__day = getDayNumber(props);
+
+  feature.properties = props;
+  return feature;
+}
+
+function selectPaintingByDay(dayNumber) {
+  const feature = allFeatures.find(f => f.properties?.__day === dayNumber);
+  if (!feature) return;
+
+  selectedFeatureId = feature.id;
+
+  if (map.getLayer('paintings-selected')) {
+    map.setFilter('paintings-selected', ['==', ['id'], selectedFeatureId]);
+  }
+
+  map.flyTo({
+    center: feature.geometry.coordinates,
+    zoom: Math.max(map.getZoom(), 11),
+    essential: true
+  });
+
+  showPaintingCard(feature);
+}
+
+    async function loadPaintingData() {
+      const res = await fetch(PAINTINGS_GEOJSON);
+      if (!res.ok) throw new Error(`Failed to load data: ${res.status}`);
+      const data = await res.json();
+      data.features = (data.features || [])
+        .filter(f => f.geometry && f.geometry.type === 'Point')
+        .map(normaliseFeatureProperties);
+      allFeatures = data.features;
+      return data;
+    }
+
+    map.on('load', async () => {
+      const data = await loadPaintingData();
+
+   map.addSource('paintings', {
+  type: 'geojson',
+  data,
+  generateId: false
+});
+
+      map.addLayer({
+        id: 'paintings-pins',
+        type: 'circle',
+        source: 'paintings',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': [
+            'case',
+            ['==', ['id'], selectedFeatureId ?? -1], 11,
+            ['==', ['id'], hoverFeatureId ?? -1], 10,
+            8
+          ],
+          'circle-color': ['get', '__color'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2
+        }
+      });
+
+      map.addLayer({
+        id: 'paintings-selected',
+        type: 'circle',
+        source: 'paintings',
+        filter: ['==', ['id'], -1],
+        paint: {
+          'circle-radius': 15,
+          'circle-color': 'rgba(0,0,0,0)',
+          'circle-stroke-color': '#111827',
+          'circle-stroke-width': 3
+        }
+      });
+
+      if (data.features.length) {
+        const bounds = new maplibregl.LngLatBounds();
+        data.features.forEach(f => bounds.extend(f.geometry.coordinates));
+        map.fitBounds(bounds, { padding: 80, maxZoom: 9 });
+      }
+
+     
+    });
+
+    map.on('click', 'paintings-pins', e => {
+      const feature = e.features[0];
+      selectedFeatureId = feature.id;
+      map.setFilter('paintings-selected', ['==', ['id'], selectedFeatureId]);
+      showPaintingCard(feature);
+    });
+
+    map.on('mouseenter', 'paintings-pins', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      hoverFeatureId = e.features[0].id;
+    });
+
+    map.on('mouseleave', 'paintings-pins', () => {
+      map.getCanvas().style.cursor = '';
+      hoverFeatureId = null;
+    });
+
+
+
+
+   
+  </script>
+</body>
+</html>
