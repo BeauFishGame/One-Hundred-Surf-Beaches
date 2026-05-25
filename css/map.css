@@ -161,7 +161,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: #555;
-  margin-bottom: 12px;
+  margin-bottom: 1px;
 }
 
 .card-list {
@@ -236,7 +236,7 @@ body {
 .card-image-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 12.5 / 9;
   border-radius: 10px;
   overflow: hidden;
   background: #f2f2f2;
@@ -248,6 +248,8 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
+   transform: scale(1.5);
+
   display: block;
   cursor: pointer;
 }
@@ -519,7 +521,7 @@ body {
 }
 
 .print-details {
-  margin-top: 20px;
+  margin-top: 2px;
 
   font-family: 'Crimson Text', serif;
   font-size: 15px;
