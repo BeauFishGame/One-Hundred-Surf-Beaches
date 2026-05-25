@@ -356,13 +356,7 @@ body {
   cursor: pointer;
 }
 
- .buy-now-wide {
-  min-height: 54px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+ 
   .brand-text {
     display: none;
   }
@@ -548,7 +542,7 @@ body {
   text-align: center;
   padding: 10px 1px;
   font-size: 20px;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .print-details {
