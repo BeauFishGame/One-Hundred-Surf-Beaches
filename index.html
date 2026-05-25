@@ -203,10 +203,11 @@
   }
 }
     function closeCard() {
-      openPanel(null);
-      selectedFeatureId = null;
-      if (map?.getLayer('paintings-selected')) map.setFilter('paintings-selected', ['==', ['id'], -1]);
-    }
+  openPanel(null);
+  selectedFeatureId = null;
+  hoverFeatureId = null;
+  updateActivePaintingStyles();
+}
 map.on('click', (e) => {
   const features = map.queryRenderedFeatures(e.point, {
     layers: ['paintings-pins']
@@ -379,27 +380,60 @@ function updateActivePaintingStyles() {
     ? ['in', ['id'], ['literal', activeIds]]
     : ['==', ['id'], -1];
 
-  if (map.getLayer('paintings-pins')) {
-    map.setPaintProperty('paintings-pins', 'circle-radius', [
-      'case',
-      ['in', ['id'], ['literal', activeIds]],
-      11,
-      8
-    ]);
-  }
+ if (map.getLayer('paintings-hover')) {
+  map.setFilter(
+    'paintings-hover',
+    hoverFeatureId !== null &&
+    hoverFeatureId !== selectedFeatureId
+      ? ['==', ['id'], hoverFeatureId]
+      : ['==', ['id'], -1]
+  );
+}
 
-  if (map.getLayer('paintings-labels')) {
-    map.setFilter('paintings-labels', activeFilter);
-  }
+if (map.getLayer('paintings-labels')) {
+  map.setFilter(
+    'paintings-labels',
+    hoverFeatureId !== null
+      ? ['==', ['id'], hoverFeatureId]
+      : ['==', ['id'], -1]
+  );
+}
 
-  if (map.getLayer('paintings-selected')) {
-    map.setFilter(
-      'paintings-selected',
-      selectedFeatureId !== null
-        ? ['==', ['id'], selectedFeatureId]
-        : ['==', ['id'], -1]
-    );
-  }
+if (map.getLayer('paintings-selected-label')) {
+  map.setFilter(
+    'paintings-selected-label',
+    selectedFeatureId !== null
+      ? ['==', ['id'], selectedFeatureId]
+      : ['==', ['id'], -1]
+  );
+}
+
+if (map.getLayer('paintings-selected')) {
+  map.setFilter(
+    'paintings-selected',
+    selectedFeatureId !== null
+      ? ['==', ['id'], selectedFeatureId]
+      : ['==', ['id'], -1]
+  );
+}
+
+if (map.getLayer('paintings-selected-ring')) {
+  map.setFilter(
+    'paintings-selected-ring',
+    selectedFeatureId !== null
+      ? ['==', ['id'], selectedFeatureId]
+      : ['==', ['id'], -1]
+  );
+}
+
+if (map.getLayer('paintings-pins')) {
+  map.setFilter(
+    'paintings-pins',
+    selectedFeatureId !== null
+      ? ['!=', ['id'], selectedFeatureId]
+      : ['!=', ['id'], -1]
+  );
+}
 }
 
 function selectPaintingByDay(dayNumber) {
@@ -443,19 +477,16 @@ updateActivePaintingStyles();
   generateId: false
 });
 
-    map.addLayer({
+  map.addLayer({
   id: 'paintings-pins',
   type: 'circle',
   source: 'paintings',
+  filter: ['!=', ['id'], -1],
   paint: {
-   'circle-radius': [
-  'case',
-  ['in', ['id'], ['literal', []]], 11,
-  8
-],
+    'circle-radius': 8,
     'circle-color': '#111111',
     'circle-stroke-color': '#f5f3ef',
-    'circle-stroke-width': 2.2
+    'circle-stroke-width': 2.3
   }
 });
 
@@ -477,18 +508,63 @@ map.addLayer({
   }
 });
 
-     map.addLayer({
+map.addLayer({
+  id: 'paintings-hover',
+  type: 'circle',
+  source: 'paintings',
+  filter: ['==', ['id'], -1],
+  paint: {
+    'circle-radius': 9,
+    'circle-color': '#111111',
+    'circle-stroke-color': '#f5f3ef',
+    'circle-stroke-width': 2.4
+  }
+});
+
+map.addLayer({
   id: 'paintings-selected',
   type: 'circle',
   source: 'paintings',
   filter: ['==', ['id'], -1],
   paint: {
-    'circle-radius': 16,
-    'circle-color': 'rgba(0,0,0,0)',
-    'circle-stroke-color': '#111111',
-    'circle-stroke-width': 1.5
+    'circle-radius': 10,
+    'circle-color': '#111111',
+    'circle-stroke-color': '#f5f3ef',
+    'circle-stroke-width': 2.5
   }
 });
+
+map.addLayer({
+  id: 'paintings-selected-ring',
+  type: 'circle',
+  source: 'paintings',
+  filter: ['==', ['id'], -1],
+  paint: {
+    'circle-radius': 15,
+    'circle-color': 'rgba(0,0,0,0)',
+    'circle-stroke-color': '#111111',
+    'circle-stroke-width': 1
+  }
+});
+
+map.addLayer({
+  id: 'paintings-selected-label',
+  type: 'symbol',
+  source: 'paintings',
+  filter: ['==', ['id'], -1],
+  layout: {
+    'text-field': ['to-string', ['get', '__day']],
+    'text-font': ['Noto Sans Regular'],
+    'text-size': 10,
+    'text-allow-overlap': true,
+    'text-ignore-placement': true
+  },
+  paint: {
+    'text-color': '#ffffff'
+  }
+});
+
+
 
       if (data.features.length) {
         const bounds = new maplibregl.LngLatBounds();
