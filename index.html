@@ -56,11 +56,6 @@
     window.__cardPhotos = [];
     window.__cardPhotoIndex = 0;
 
-    // =========================================================
-    // INITIAL VIEW FROM HASH
-    // =========================================================
- 
-   
     map = new maplibregl.Map({
       container: 'map',
       style: STYLE_URL,
@@ -281,9 +276,11 @@ map.on('click', (e) => {
       const directionsUrl = getGoogleDirectionsLink(feature);
       const photos = collectPhotoUrls(props);
       const dayNumber = props.__day;
-const hasPrevious = dayNumber && allFeatures.some(f => f.properties?.__day === dayNumber - 1);
-const hasNext = dayNumber && allFeatures.some(f => f.properties?.__day === dayNumber + 1);
+const minDay = Math.min(...allFeatures.map(f => f.properties?.__day).filter(Number.isFinite));
+const maxDay = Math.max(...allFeatures.map(f => f.properties?.__day).filter(Number.isFinite));
 
+const previousDay = dayNumber === minDay ? maxDay : dayNumber - 1;
+const nextDay = dayNumber === maxDay ? minDay : dayNumber + 1;
       window.__cardPhotos = photos;
       window.__cardPhotoIndex = 0;
 
@@ -314,12 +311,9 @@ const hasNext = dayNumber && allFeatures.some(f => f.properties?.__day === dayNu
 
       html += `<div class="card-actions">`;
 
-if (hasPrevious) {
-  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${dayNumber - 1})">Previous day</button>`;
-}
-
-if (hasNext) {
-  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${dayNumber + 1})">Next day</button>`;
+if (dayNumber) {
+  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${previousDay})">Previous day</button>`;
+  html += `<button class="secondary-btn" onclick="selectPaintingByDay(${nextDay})">Next day</button>`;
 }
 
 if (shopUrl) {
@@ -364,9 +358,12 @@ function selectPaintingByDay(dayNumber) {
     map.setFilter('paintings-selected', ['==', ['id'], selectedFeatureId]);
   }
 
+  const isMobile = window.innerWidth <= 768;
+
   map.flyTo({
     center: feature.geometry.coordinates,
     zoom: Math.max(map.getZoom(), 11),
+    offset: isMobile ? [0, window.innerHeight * -0.2] : [0, 0],
     essential: true
   });
 

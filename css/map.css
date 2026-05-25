@@ -403,4 +403,42 @@ body {
     top: 18px;
     right: 24px;
   }
+
+    .card-title {
+    font-size: 28px;
+    line-height: 32px;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
+  }
+
+  .subtitle-main {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .card-list {
+    font-size: 13px;
+    line-height: 1.35;
+    margin-bottom: 8px;
+  }
+
+  .description {
+    font-size: 14px;
+    line-height: 22px;
+    letter-spacing: 0.3px;
+    margin-bottom: 10px;
+  }
+
+  .card-actions {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
 }
