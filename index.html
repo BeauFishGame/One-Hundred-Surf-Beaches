@@ -516,29 +516,29 @@ map.addLayer({
   }
 });
 
-map.addLayer({
-  id: 'paintings-labels',
-  type: 'symbol',
-  source: 'paintings',
-  filter: ['==', ['id'], -1],
-  layout: {
-    'text-field': ['to-string', ['get', '__day']],
-    'text-font': ['Noto Sans Regular'],
-    'text-size': [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      5, 7,
-      10, 9
-    ],
-    'symbol-sort-key': ['get', '__day'],
-    'text-allow-overlap': true,
-    'text-ignore-placement': true
-  },
-  paint: {
-    'text-color': '#ffffff'
-  }
-});
+// map.addLayer({
+//   id: 'paintings-labels',
+//   type: 'symbol',
+//   source: 'paintings',
+//   filter: ['==', ['id'], -1],
+//   layout: {
+//     'text-field': ['to-string', ['get', '__day']],
+//     'text-font': ['Noto Sans Regular'],
+//     'text-size': [
+//       'interpolate',
+//       ['linear'],
+//       ['zoom'],
+//       5, 7,
+//       10, 9
+//     ],
+//     'symbol-sort-key': ['get', '__day'],
+//     'text-allow-overlap': true,
+//     'text-ignore-placement': true
+//   },
+//   paint: {
+//     'text-color': '#ffffff'
+//   }
+// });
 
 map.addLayer({
   id: 'paintings-hover',
@@ -618,28 +618,28 @@ map.addLayer({
   }
 });
 
-map.addLayer({
-  id: 'paintings-selected-label',
-  type: 'symbol',
-  source: 'paintings',
-  filter: ['==', ['id'], -1],
-  layout: {
-    'text-field': ['to-string', ['get', '__day']],
-    'text-font': ['Noto Sans Regular'],
-    'text-size': [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      5, 8,
-      10, 10
-    ],
-    'text-allow-overlap': true,
-    'text-ignore-placement': true
-  },
-  paint: {
-    'text-color': '#ffffff'
-  }
-});
+// map.addLayer({
+//   id: 'paintings-selected-label',
+//   type: 'symbol',
+//   source: 'paintings',
+//   filter: ['==', ['id'], -1],
+//   layout: {
+//     'text-field': ['to-string', ['get', '__day']],
+//     'text-font': ['Noto Sans Regular'],
+//     'text-size': [
+//       'interpolate',
+//       ['linear'],
+//       ['zoom'],
+//       5, 8,
+//       10, 10
+//     ],
+//     'text-allow-overlap': true,
+//     'text-ignore-placement': true
+//   },
+//   paint: {
+//     'text-color': '#ffffff'
+//   }
+// });
 
       if (data.features.length) {
         const bounds = new maplibregl.LngLatBounds();
