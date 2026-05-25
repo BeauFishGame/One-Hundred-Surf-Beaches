@@ -32,8 +32,29 @@
     const PAINTINGS_GEOJSON = 'data/paintings.example.geojson';
 
     const LINZ_API_KEY = 'd01hep5551e30kxb7w85hck49tp';
-    const STYLE_URL = `https://basemaps.linz.govt.nz/v1/styles/aerial.json?api=${LINZ_API_KEY}`;
+  const AERIAL_STYLE = {
+  version: 8,
+  glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
 
+  sources: {
+    "basemaps-aerial": {
+      type: "raster",
+      tiles: [
+        `https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=${LINZ_API_KEY}`
+      ],
+      tileSize: 256,
+      attribution: "© LINZ CC BY 4.0"
+    }
+  },
+
+  layers: [
+    {
+      id: "basemaps-aerial",
+      type: "raster",
+      source: "basemaps-aerial"
+    }
+  ]
+};
     const INITIAL_VIEW = {
       center: [173.651145,-41.035373	],
       zoom: 5.3,
@@ -58,7 +79,7 @@
 
     map = new maplibregl.Map({
       container: 'map',
-      style: STYLE_URL,
+      style: AERIAL_STYLE,
       center: INITIAL_VIEW.center,
       zoom: INITIAL_VIEW.zoom,
       minZoom: INITIAL_VIEW.minZoom
@@ -348,15 +369,45 @@ function normaliseFeatureProperties(feature, index) {
   return feature;
 }
 
+function updateActivePaintingStyles() {
+  const activeIds = [];
+
+  if (hoverFeatureId !== null) activeIds.push(hoverFeatureId);
+  if (selectedFeatureId !== null) activeIds.push(selectedFeatureId);
+
+  const activeFilter = activeIds.length
+    ? ['in', ['id'], ['literal', activeIds]]
+    : ['==', ['id'], -1];
+
+  if (map.getLayer('paintings-pins')) {
+    map.setPaintProperty('paintings-pins', 'circle-radius', [
+      'case',
+      ['in', ['id'], ['literal', activeIds]],
+      11,
+      8
+    ]);
+  }
+
+  if (map.getLayer('paintings-labels')) {
+    map.setFilter('paintings-labels', activeFilter);
+  }
+
+  if (map.getLayer('paintings-selected')) {
+    map.setFilter(
+      'paintings-selected',
+      selectedFeatureId !== null
+        ? ['==', ['id'], selectedFeatureId]
+        : ['==', ['id'], -1]
+    );
+  }
+}
+
 function selectPaintingByDay(dayNumber) {
   const feature = allFeatures.find(f => f.properties?.__day === dayNumber);
   if (!feature) return;
 
-  selectedFeatureId = feature.id;
-
-  if (map.getLayer('paintings-selected')) {
-    map.setFilter('paintings-selected', ['==', ['id'], selectedFeatureId]);
-  }
+ selectedFeatureId = feature.id;
+updateActivePaintingStyles();
 
   const isMobile = window.innerWidth <= 768;
 
@@ -382,6 +433,8 @@ function selectPaintingByDay(dayNumber) {
     }
 
     map.on('load', async () => {
+      map.getStyle().glyphs = 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf';
+
       const data = await loadPaintingData();
 
    map.addSource('paintings', {
@@ -390,36 +443,52 @@ function selectPaintingByDay(dayNumber) {
   generateId: false
 });
 
-      map.addLayer({
-        id: 'paintings-pins',
-        type: 'circle',
-        source: 'paintings',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-radius': [
-            'case',
-            ['==', ['id'], selectedFeatureId ?? -1], 11,
-            ['==', ['id'], hoverFeatureId ?? -1], 10,
-            8
-          ],
-          'circle-color': ['get', '__color'],
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2
-        }
-      });
+    map.addLayer({
+  id: 'paintings-pins',
+  type: 'circle',
+  source: 'paintings',
+  paint: {
+   'circle-radius': [
+  'case',
+  ['in', ['id'], ['literal', []]], 11,
+  8
+],
+    'circle-color': '#111111',
+    'circle-stroke-color': '#f5f3ef',
+    'circle-stroke-width': 2
+  }
+});
 
-      map.addLayer({
-        id: 'paintings-selected',
-        type: 'circle',
-        source: 'paintings',
-        filter: ['==', ['id'], -1],
-        paint: {
-          'circle-radius': 15,
-          'circle-color': 'rgba(0,0,0,0)',
-          'circle-stroke-color': '#111827',
-          'circle-stroke-width': 3
-        }
-      });
+map.addLayer({
+  id: 'paintings-labels',
+  type: 'symbol',
+  source: 'paintings',
+  filter: ['==', ['id'], -1],
+  layout: {
+    'text-field': ['to-string', ['get', '__day']],
+    'text-font': ['Noto Sans Regular'],
+    'text-size': 9,
+    'symbol-sort-key': ['get', '__day'],
+    'text-allow-overlap': true,
+    'text-ignore-placement': true
+  },
+  paint: {
+    'text-color': '#ffffff'
+  }
+});
+
+     map.addLayer({
+  id: 'paintings-selected',
+  type: 'circle',
+  source: 'paintings',
+  filter: ['==', ['id'], -1],
+  paint: {
+    'circle-radius': 16,
+    'circle-color': 'rgba(0,0,0,0)',
+    'circle-stroke-color': '#111111',
+    'circle-stroke-width': 1.5
+  }
+});
 
       if (data.features.length) {
         const bounds = new maplibregl.LngLatBounds();
@@ -430,23 +499,30 @@ function selectPaintingByDay(dayNumber) {
      
     });
 
-    map.on('click', 'paintings-pins', e => {
-      const feature = e.features[0];
-      selectedFeatureId = feature.id;
-      map.setFilter('paintings-selected', ['==', ['id'], selectedFeatureId]);
-      showPaintingCard(feature);
-    });
+map.on('click', 'paintings-pins', e => {
+  const feature = e.features[0];
+  selectedFeatureId = feature.id;
+  updateActivePaintingStyles();
+  showPaintingCard(feature);
+});
 
-    map.on('mouseenter', 'paintings-pins', e => {
-      map.getCanvas().style.cursor = 'pointer';
-      hoverFeatureId = e.features[0].id;
-    });
+map.on('mousemove', 'paintings-pins', e => {
+  map.getCanvas().style.cursor = 'pointer';
 
-    map.on('mouseleave', 'paintings-pins', () => {
-      map.getCanvas().style.cursor = '';
-      hoverFeatureId = null;
-    });
-   
+  const feature = e.features[0];
+  if (!feature) return;
+
+  if (hoverFeatureId !== feature.id) {
+    hoverFeatureId = feature.id;
+    updateActivePaintingStyles();
+  }
+});
+
+map.on('mouseleave', 'paintings-pins', () => {
+  map.getCanvas().style.cursor = '';
+  hoverFeatureId = null;
+  updateActivePaintingStyles();
+});
   </script>
 </body>
 </html>
