@@ -23,8 +23,9 @@
     <span class="close-modal" onclick="closeModal()" aria-label="Close">×</span>
   </div>
 
+<body>
   <div id="map"></div>
-
+</body>
   <div class="map-overlay" id="properties"></div>
 
   <script>
@@ -32,6 +33,41 @@
     const PAINTINGS_GEOJSON = 'data/paintings.example.geojson';
 
     const LINZ_API_KEY = 'd01hep5551e30kxb7w85hck49tp';
+    const WORLD_IMAGERY = {
+  version: 8,
+  sources: {
+    esri: {
+      type: "raster",
+      tiles: [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      ],
+      tileSize: 256
+    }
+  },
+  layers: [{
+    id: "esri",
+    type: "raster",
+    source: "esri"
+  }]
+};
+
+const MAPBOX_STYLE = {
+  version: 8,
+  sources: {
+    satellite: {
+      type: "raster",
+      tiles: [
+        "https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg90?access_token="
+      ],
+      tileSize: 256
+    }
+  },
+  layers: [{
+    id: "satellite",
+    type: "raster",
+    source: "satellite"
+  }]
+};
   const AERIAL_STYLE = {
   version: 8,
   glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
@@ -58,7 +94,7 @@
     const INITIAL_VIEW = {
       center: [173.651145,-41.035373	],
       zoom: 4.5,
-      minZoom: 4.5
+      minZoom: 4
     };
 
     const statusColors = {
@@ -350,7 +386,7 @@ html += `
   </div>
 `;
 if (shopUrl) {
-  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_blank" rel="noopener">Buy Now</a>`;
+  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_self">Buy Now</a>`;
 }
 
 
@@ -641,11 +677,11 @@ map.addLayer({
 //   }
 // });
 
-      if (data.features.length) {
-        const bounds = new maplibregl.LngLatBounds();
-        data.features.forEach(f => bounds.extend(f.geometry.coordinates));
-        map.fitBounds(bounds, { padding: 80, maxZoom: 9 });
-      }
+      // if (data.features.length) {
+      //   const bounds = new maplibregl.LngLatBounds();
+      //   data.features.forEach(f => bounds.extend(f.geometry.coordinates));
+      //   map.fitBounds(bounds, { padding: 80, maxZoom: 9 });
+      // }
 
      
     });

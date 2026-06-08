@@ -576,3 +576,16 @@ body {
     padding-top: 1px;
   }
 }
+
+
+
+#topbar {
+  height: 80px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
