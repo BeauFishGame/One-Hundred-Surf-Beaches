@@ -370,8 +370,6 @@ if (price) {
 
       }
 
-    
-
       const description = safeGet(props, 'description', 'Description', 'notes');
       if (description) html += `<p class="description">${escapeHtml(description)}</p>`;
 
@@ -386,7 +384,7 @@ html += `
   </div>
 `;
 if (shopUrl) {
-  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_self">Buy Now</a>`;
+  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_top">Buy Now</a>`;
 }
 
 
