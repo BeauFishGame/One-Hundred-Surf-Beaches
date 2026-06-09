@@ -225,6 +225,14 @@ const MAPBOX_STYLE = {
       return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
     }
 
+    function trackBuyNow(title, day) {
+  if (window.umami) {
+    umami.track('buy-now-click', {
+      title,
+      day
+    });
+  }
+}
     // =========================================================
     // PANEL AND IMAGE MODAL
     // =========================================================
@@ -737,14 +745,7 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
-function trackBuyNow(title, day) {
-  if (window.umami) {
-    umami.track('buy-now-click', {
-      title,
-      day
-    });
-  }
-}
+
 
 map.on('mouseleave', 'paintings-pins', () => {
   map.getCanvas().style.cursor = '';
