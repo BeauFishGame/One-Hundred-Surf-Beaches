@@ -391,12 +391,12 @@ html += `
   </div>
 `;
 if (shopUrl) {
- html += `<a class="primary-btn buy-now-wide"
-  href="${escapeHtml(shopUrl)}"
-  target="_top"
-  onclick="trackBuyNow(${JSON.stringify(title)}, ${JSON.stringify(dayNumber)})">
-  Buy Now
-</a>`;
+  html += `<a class="primary-btn buy-now-wide"
+    href="${escapeHtml(shopUrl)}"
+    target="_top"
+    onclick='trackBuyNow(${JSON.stringify(title)}, ${JSON.stringify(dayNumber)})'>
+    Buy Now
+  </a>`;
 }
 
 
