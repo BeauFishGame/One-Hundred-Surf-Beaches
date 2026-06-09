@@ -14,6 +14,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/map.css" />
+
+  <script defer
+    src="https://analytics.yourdomain.com/script.js"
+    data-website-id="76f5ac1e-fd02-4a42-9d2b-4edf66a7b70c">
+  </script>
 </head>
 <body>
   <div id="imageModal" class="modal" role="dialog" aria-modal="true">
@@ -325,6 +330,11 @@ map.on('click', (e) => {
     // CARD
     // =========================================================
     function showPaintingCard(feature) {
+
+ 
+
+window.paintingsViewed = (window.paintingsViewed || 0) + 1;
+
       const props = feature.properties || {};
       const title = getTitle(props);
       const beach = getBeach(props);
@@ -384,7 +394,20 @@ html += `
   </div>
 `;
 if (shopUrl) {
-  html += `<a class="primary-btn buy-now-wide" href="${escapeHtml(shopUrl)}" target="_top">Buy Now</a>`;
+ html += `<a class="primary-btn buy-now-wide"
+  href="${escapeHtml(shopUrl)}"
+  target="_top"
+  onclick="trackBuyNow(${JSON.stringify(title)}, ${JSON.stringify(dayNumber)})">
+  Buy Now
+</a>`;
+}
+
+
+
+     if (window.umami) {
+  umami.track('painting-view', {
+    name: title
+  });
 }
 
 
@@ -485,6 +508,12 @@ if (map.getLayer('paintings-pins')) {
 function selectPaintingByDay(dayNumber) {
   const feature = allFeatures.find(f => f.properties?.__day === dayNumber);
   if (!feature) return;
+
+if (window.umami) {
+  umami.track('day-navigation', {
+    day: dayNumber
+  });
+}
 
  selectedFeatureId = feature.id;
 updateActivePaintingStyles();
@@ -702,6 +731,23 @@ map.on('mousemove', 'paintings-pins', e => {
     updateActivePaintingStyles();
   }
 });
+
+window.addEventListener('beforeunload', () => {
+  if (window.umami) {
+    umami.track('session-end', {
+      viewed: window.paintingsViewed || 0
+    });
+  }
+});
+
+function trackBuyNow(title, day) {
+  if (window.umami) {
+    umami.track('buy-now-click', {
+      title,
+      day
+    });
+  }
+}
 
 map.on('mouseleave', 'paintings-pins', () => {
   map.getCanvas().style.cursor = '';
